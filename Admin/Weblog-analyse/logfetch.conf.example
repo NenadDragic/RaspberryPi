@@ -1,0 +1,117 @@
+# Eksempelkonfiguration. Kopier den, og udfyld din egen kopi:
+#
+#   mkdir -p ~/.config/logfetch
+#   cp logfetch.conf.example ~/.config/logfetch/config
+#   chmod 600 ~/.config/logfetch/config
+#
+# Denne fil hoerer til i et repo. Din udfyldte kopi goer IKKE:
+# den indeholder adgangskoden i klartekst. Laeg disse linjer i
+# .gitignore, foer du committer noget:
+#
+#   .config/logfetch/config
+#   weblogs/
+#   *.gz
+
+
+# --- Adgang -------------------------------------------------------
+#
+# ANFOERSELSTEGN: adgangskoden skal staa i ENKELTE '...'.
+# Filen bliver source'et af bash, og i dobbelte "..." laeses $ som
+# starten paa et variabelnavn og fjernes. En adgangskode som
+# abc$QJw&c1$@9 bliver da til abc&c19, og login fejler med 530
+# uden at noget peger paa hvorfor.
+#
+# Indeholder adgangskoden selv et ', skrives det som '\''
+
+FTP_HOST="ftp.dinudbyder.dk"
+FTP_USER="cpanelbruger"
+FTP_PASS='hemmelig-adgangskode'
+
+
+# --- Hvor logs ligger paa serveren --------------------------------
+#
+# Logger du ind som cPanel-hovedkontoen, ligger arkivet i "logs"
+# relativt til hjemmekataloget. Bruger du en dedikeret FTP-konto,
+# der kun har adgang til logmappen, ER kontoens rod logmappen --
+# saet da REMOTE_DIR="/".
+#
+# Rammer du forkert, fejler cd med 550, eller der hentes nul filer
+# uden nogen fejlmeddelelse.
+
+REMOTE_DIR="logs"
+
+# Filfilter for hentningen. "*.gz" tager kun de arkiverede logs.
+# Uden filteret henter mirror alt, hvad der ligger i REMOTE_DIR --
+# og er FTP-kontoen ikke laast til logmappen, er det hele
+# hjemmekataloget. Saet den til "*", hvis der ogsaa ligger
+# ukomprimerede logfiler, du vil have med.
+
+REMOTE_GLOB="*.gz"
+
+
+# --- Lokale stier -------------------------------------------------
+#
+# ANFOERSELSTEGN: stierne skal blive i DOBBELTE "...", ellers
+# udvides $HOME ikke, og du faar en mappe der hedder "$HOME".
+
+LOCAL_DIR="$HOME/weblogs/raw"
+
+
+# --- Sletning paa serveren ----------------------------------------
+#
+# Saet til "yes" for at slette verificerede filer paa serveren efter
+# download. Indevaerende maaneds filer slettes ALDRIG, da de stadig
+# skrives til. Start med "no", indtil du har set at hentningen virker,
+# og lad den blive paa "no" under cron: den interaktive bekraeftelse
+# blokerer ellers jobbet.
+
+DELETE_REMOTE="no"
+
+
+# --- FTPS ---------------------------------------------------------
+#
+# Saet til "no" kun hvis udbyderen ikke understoetter det -- da
+# sendes din adgangskode i klartekst over nettet.
+
+USE_FTPS="yes"
+
+
+# --- Levende logs (dagens trafik) ---------------------------------
+#
+# cPanel arkiverer kun logs ved den natlige statistikkoersel, saa
+# arkivet er altid mindst et doegn bagud. Er "til og med i gaar" godt
+# nok, saa lad denne staa paa "no".
+#
+# Saet den til "yes", hvis du ogsaa vil se indevaerende dags trafik.
+# Da hentes ~/access-logs/ ned i LIVE_LOCAL_DIR. Bemaerk at cPanel selv
+# roterer de filer, saa de ikke duer som historik -- og hold dem uden
+# for LOCAL_DIR, ellers taelles trafikken dobbelt.
+#
+# REMOTE_GLOB bruges ikke her: live-logs er hverken komprimerede
+# eller daterede.
+
+FETCH_LIVE="no"
+LIVE_REMOTE_DIR="access-logs"
+LIVE_LOCAL_DIR="$HOME/weblogs/live"
+
+
+# --- Stier brugt af sync-logs.sh og cleanup-data.sh ---------------
+
+REPORTS_DIR="$HOME/weblogs/reports"
+STATE_DIR="$HOME/weblogs/.state"
+GOACCESS_DB_DIR="$HOME/weblogs/db"
+SRC_ROOT="$HOME/src"
+
+
+# --- Opbevaringspolitik for cleanup-data.sh -----------------------
+#
+# 0 betyder "behold alt".
+#
+# RAW_RETENTION_MONTHS staar bevidst paa 0: naar logs er slettet hos
+# udbyderen, er det lokale arkiv den eneste kopi af historikken.
+# Aendr den kun hvis du er sikker.
+
+REPORTS_RETENTION_DAYS=0    # rapporter genopbygges, kan altid slettes
+LIVE_RETENTION_DAYS=7       # live-logs roteres alligevel af cPanel
+RAW_RETENTION_MONTHS=0      # historikken -- 0 = behold for evigt
+KEEP_SOURCE_BUILDS=1        # antal goaccess-kildetraeer der beholdes

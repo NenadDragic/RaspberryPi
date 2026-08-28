@@ -1,0 +1,25 @@
+# Den udfyldte konfiguration -- indeholder adgangskoden i klartekst.
+# Kun logfetch.conf.example med sine pladsholdere hoerer til i repoet.
+config
+logfetch.conf
+*.conf
+
+# Logdata og rapporter. Bade raa logs og GoAccess-rapporter indeholder
+# IP-adresser, referrers og user agents -- persondata efter GDPR.
+weblogs/
+Web-Stat/
+reports/
+raw/
+live/
+db/
+archive/
+attic/
+.state/
+
+# Logfiler og arkiver
+*.gz
+*.log
+
+# Bygget dokumentation. README.md er kilden; PDF'en genskabes med
+# make-pdf.sh. Fjern linjen hvis du hellere vil have den med.
+#README.pdf
