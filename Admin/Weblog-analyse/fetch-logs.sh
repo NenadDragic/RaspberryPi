@@ -49,7 +49,17 @@ REMOTE_GLOB="${REMOTE_GLOB:-*.gz}"
 # paa maskinen, saa laenge overfoerslen koerer.
 export LFTP_PASSWORD="$FTP_PASS"
 
-command -v lftp >/dev/null || { echo "FEJL: lftp er ikke installeret (sudo apt install lftp)" >&2; exit 1; }
+# --- Dependency check ---
+_d="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
+while [ "$_d" != "/" ] && [ ! -f "$_d/lib/require_tools.sh" ]; do _d="$(dirname "$_d")"; done
+if [ ! -f "$_d/lib/require_tools.sh" ]; then
+    echo "FEJL: Kunne ikke finde lib/require_tools.sh (delt dependency-checker)." >&2
+    exit 1
+fi
+# shellcheck source=/dev/null
+source "$_d/lib/require_tools.sh"
+unset _d
+require_tools lftp
 
 mkdir -p "$LOCAL_DIR"
 

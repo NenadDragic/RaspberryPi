@@ -39,7 +39,18 @@ OUT_DIR="${POSITIONAL[1]:-$HOME/weblogs/reports}"
 WORK_DIR="$(mktemp -d)"
 trap 'rm -rf "$WORK_DIR"' EXIT
 
-command -v goaccess >/dev/null || { echo "FEJL: goaccess findes ikke i PATH" >&2; exit 1; }
+# --- Dependency check ---
+_d="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
+while [ "$_d" != "/" ] && [ ! -f "$_d/lib/require_tools.sh" ]; do _d="$(dirname "$_d")"; done
+if [ ! -f "$_d/lib/require_tools.sh" ]; then
+    echo "FEJL: Kunne ikke finde lib/require_tools.sh (delt dependency-checker)." >&2
+    exit 1
+fi
+# shellcheck source=/dev/null
+source "$_d/lib/require_tools.sh"
+unset _d
+require_tools goaccess
+
 [[ -d "$SRC_DIR" ]] || { echo "FEJL: kildemappe findes ikke: $SRC_DIR" >&2; exit 1; }
 
 mkdir -p "$OUT_DIR" "$WORK_DIR/days" "$WORK_DIR/months"

@@ -60,7 +60,18 @@ if [[ "$STATUS_ONLY" == "yes" ]]; then
 fi
 
 [[ -d "$RAW_DIR" ]] || { echo "FEJL: kildemappe findes ikke: $RAW_DIR" >&2; exit 1; }
-command -v rsync >/dev/null || { echo "FEJL: rsync er ikke installeret" >&2; exit 1; }
+
+# --- Dependency check ---
+_d="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
+while [ "$_d" != "/" ] && [ ! -f "$_d/lib/require_tools.sh" ]; do _d="$(dirname "$_d")"; done
+if [ ! -f "$_d/lib/require_tools.sh" ]; then
+    echo "FEJL: Kunne ikke finde lib/require_tools.sh (delt dependency-checker)." >&2
+    exit 1
+fi
+# shellcheck source=/dev/null
+source "$_d/lib/require_tools.sh"
+unset _d
+require_tools rsync
 
 mkdir -p "$ARCHIVE_DIR"
 
