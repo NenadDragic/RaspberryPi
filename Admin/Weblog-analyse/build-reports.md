@@ -18,6 +18,7 @@ Prerequisites:
 - `goaccess` on `PATH` (see [goaccess-build.md](goaccess-build.md)).
 - GNU `awk`, `find`, `sort`, `mktemp`, `date` (script uses GNU `date -d`).
 - Raw log files present in the source directory, named `<domain>-<Mmm>-<YYYY>[.gz]` (cPanel's archive naming) unless `--live` is used.
+- Dependency check: the script starts by sourcing the shared `lib/require_tools.sh` (found by walking up from the script's own folder) and stops with an `apt install` hint if any of these are missing: `goaccess`
 
 ### Flags
 

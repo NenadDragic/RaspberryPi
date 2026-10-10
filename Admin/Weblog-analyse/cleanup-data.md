@@ -17,6 +17,7 @@ Prerequisites:
 
 - `bc` (for the human-readable size formatting).
 - Same config file as the other scripts at `~/.config/logfetch/config` (optional — sourced if present).
+- Dependency check: the script starts by sourcing the shared `lib/require_tools.sh` (found by walking up from the script's own folder) and stops with an `apt install` hint if any of these are missing: `bc`
 
 ### Configuration (via `~/.config/logfetch/config`, all optional)
 

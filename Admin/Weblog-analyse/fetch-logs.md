@@ -17,6 +17,7 @@ Prerequisites:
 
 - `lftp` installed (`sudo apt install lftp`).
 - A config file at `~/.config/logfetch/config`, copied from `logfetch.conf.example` and filled in (see that file's doc/comments — it must define `FTP_HOST`, `FTP_USER`, `FTP_PASS` at minimum). The script exits with an error if the file is missing, and warns (but doesn't stop) if its permissions aren't `600`.
+- Dependency check: the script starts by sourcing the shared `lib/require_tools.sh` (found by walking up from the script's own folder) and stops with an `apt install` hint if any of these are missing: `lftp`
 
 ### Configuration (via `~/.config/logfetch/config`)
 
