@@ -1,26 +1,29 @@
 """
 ╔══════════════════════════════════════════════════════╗
-║         Power.dk Outlet Scraper                     ║
+║         Power.dk Outlet Scraper                      ║
 ╠══════════════════════════════════════════════════════╣
-║  INSTALLATION (kun første gang):                    ║
-║    pip install requests                              ║
+║                                                      ║
+║  INSTALLATION (kun første gang):                     ║
+║    sudo apt install python3-requests                 ║
 ║                                                      ║
 ║  Kør scriptet:                                       ║
-║    python power_outlet_scraper.py                   ║
+║    python3 Outlet.py                                 ║
+║                                                      ║
+║  Filerne gemmes i scriptets egen mappe.              ║
 ╚══════════════════════════════════════════════════════╝
 
 Butikker  : POWER Lyngby + POWER Vesterport
 Kategorier: Mobiltelefoner, Bærbar PC, Stationær PC
 """
 
-import json, csv, os
+import json, csv, os, sys
 from datetime import datetime
 
 try:
     import requests
 except ImportError:
-    print("FEJL: Kør:  pip install requests")
-    exit(1)
+    print("FEJL: Kør:  sudo apt install python3-requests")
+    sys.exit(1)
 
 # ═══════════════════════════════════════════════════════
 #  KONFIGURATION
@@ -37,8 +40,10 @@ CATEGORIES = {
 }
 
 PAGE_SIZE  = 100
-OUTPUT_CSV = "power_outlet_varer.csv"
-SEEN_FILE  = "power_outlet_set.json"
+# Filerne ligger ved siden af scriptet, uanset hvorfra det køres (fx cron)
+BASE_DIR   = os.path.dirname(os.path.abspath(__file__))
+OUTPUT_CSV = os.path.join(BASE_DIR, "power_outlet_varer.csv")
+SEEN_FILE  = os.path.join(BASE_DIR, "power_outlet_set.json")
 
 # ═══════════════════════════════════════════════════════
 #  HJÆLPEFUNKTIONER
@@ -202,15 +207,12 @@ if __name__ == "__main__":
     main()
 
 # ═══════════════════════════════════════════════════════
-#  AUTOMATISK DAGLIG KØRSEL – WINDOWS Task Scheduler
+#  AUTOMATISK DAGLIG KØRSEL – cron på Raspberry Pi
 # ═══════════════════════════════════════════════════════
 """
-1. Åbn "Task Scheduler" (søg i Start-menuen)
-2. Klik "Create Basic Task"
-3. Navn: Power Outlet Scraper
-4. Trigger: Daily – f.eks. 08:00
-5. Action: Start a program
-   Program/script : python
-   Add arguments  : C:\\sti\\til\\power_outlet_scraper.py
-6. Klik Finish
+Kør  crontab -e  og tilføj fx (dagligt kl. 08:00):
+
+  0 8 * * * python3 /home/<bruger>/RaspberryPi/Admin/Power/Outlet.py >> /home/<bruger>/RaspberryPi/Admin/Power/outlet.log 2>&1
+
+Ret stien til, hvor repoet ligger. CSV- og JSON-filerne lægges i scriptets mappe.
 """

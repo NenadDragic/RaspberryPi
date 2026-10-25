@@ -14,5 +14,5 @@ Scrapers for Power.dk that track outlet and clearance products and show what is 
 ## Notes
 
 - **Run as a normal user, no sudo.** Needs Python 3 and `requests` (`sudo apt install python3-requests` on Raspberry Pi OS).
-- **Run from this folder.** The output files are written to the current folder, and they are kept out of git by `.gitignore`.
+- **Output next to the scripts:** the CSV/JSON files are written to this folder wherever the script is run from (cron included), and they and the cron logs are kept out of git by `.gitignore`.
 - The two scripts share most of their code (copied, not imported), so a fix in one usually belongs in the other too.

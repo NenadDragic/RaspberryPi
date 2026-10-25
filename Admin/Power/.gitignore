@@ -2,3 +2,4 @@
 power_*_varer.csv
 power_*_set.json
 __pycache__/
+*.log

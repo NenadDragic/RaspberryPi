@@ -9,14 +9,15 @@ It is the same script as [`Outlet.py`](Outlet.md), but fetches a campaign instea
 ## Usage
 
 ```bash
-cd ~/RaspberryPi/Admin/Power    # the output files are written to the current folder
-python3 Restsalg.py
+python3 ~/RaspberryPi/Admin/Power/Restsalg.py
 ```
+
+The output files are written next to the script, wherever it is run from.
 
 Prerequisites:
 
 - **No sudo.**
-- **Python 3 with `requests`.** On Raspberry Pi OS / Debian 12 and newer, install it with `sudo apt install python3-requests`. The script's own hint, `pip install requests`, is refused there unless you use a virtual environment.
+- **Python 3 with `requests`:** `sudo apt install python3-requests`. If it is missing, the script says so and exits with code `1`.
 - Internet access to `www.power.dk`.
 
 ### Configuration (top of script)
@@ -28,8 +29,8 @@ Prerequisites:
 | `CATEGORY_FILTER` | `BasicCategories<>1341<>1342<>1489<>10186` | Category filter sent to the API |
 | `CATEGORIES` | `1341` Bærbar PC, `1342` Stationær PC, `1489` Erhvervs stationær PC, `10186` RePOWER bærbar PC | Names used in the output |
 | `PAGE_SIZE` | `100` | Products per API call |
-| `OUTPUT_CSV` | `power_restsalg_varer.csv` | CSV file that every run appends to |
-| `SEEN_FILE` | `power_restsalg_set.json` | IDs of all products seen before |
+| `OUTPUT_CSV` | `power_restsalg_varer.csv` in the script's folder | CSV file that every run appends to |
+| `SEEN_FILE` | `power_restsalg_set.json` in the script's folder | IDs of all products seen before |
 
 ---
 
@@ -53,5 +54,5 @@ Prints the total, the number of new products and the number of products per cate
 
 - **The campaign ID is hardcoded.** When Power.dk ends or replaces the campaign, the script finds no products ("Ingen produkter fundet"). Find the new `cmp` and `fc` values in the browser's network tab on the campaign page.
 - **`CATEGORY_FILTER` and `CATEGORIES` must be kept in step by hand.** Unlike `Outlet.py`, the filter is not built from `CATEGORIES`.
-- The other notes for [`Outlet.py`](Outlet.md) apply here too: output files in the current folder and not in git, the CSV grows on every run, a network error saves what was fetched, the exit code is always `0`, and the docstring/Windows instructions use the old file name `power_restsalg_scraper.py`.
+- The other notes for [`Outlet.py`](Outlet.md) apply here too: output files next to the script and not in git, the CSV grows on every run, a network error saves what was fetched, the exit code is `0` unless `requests` is missing, and the cron example is at the bottom of the file.
 - Output is in Danish.
