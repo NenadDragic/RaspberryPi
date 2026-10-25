@@ -1,0 +1,4 @@
+# Output fra scraperne (genereres ved hver kørsel)
+power_*_varer.csv
+power_*_set.json
+__pycache__/
