@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Version:      1.0
-# Date:         2026-10-25
+# Version:      1.1
+# Date:         2026-10-26
 # Test Run:
 # Developper:   Nenad(a)dragic(.)com
 
@@ -125,27 +125,47 @@ check_result() {
   fi
 }
 
-# Tidsstempler beregnes fra periodens start (UTC) + (position-1) * opløsning,
-# så sommertid/vintertid (23/25-timers døgn) håndteres korrekt. Ved skift til
-# vintertid optræder kl. 02:00 derfor to gange (først sommertid, så vintertid).
+# jq udtrækker kun rådata: periodestart (UTC), forskydning i sekunder
+# ((position-1) * opløsning), evt. note, kWh og kvalitet. Al tidsregning sker
+# bagefter med GNU date (to_local), fordi jq 1.6 (Debian/Raspberry Pi OS
+# bookworm) viser lokal tid en time forkert i sommertid.
+# Opløsningskoder set i Eloverbliks svar: PT1H (time), PT1D (døgn).
 # shellcheck disable=SC2016  # jq-program, skal ikke ekspanderes af bash
 JQ_ROWS='
-def step: if . == "PT15M" then 900 elif . == "PT1H" then 3600
-          elif . == "P1D" then 86400 else null end;
-def utc: sub("\\.[0-9]+"; "") | if test("Z$") then . else . + "Z" end | fromdateiso8601;
-def stamp: localtime | strflocaltime("%Y-%m-%d %H:%M");
+def step: {"PT15M": 900, "PT1H": 3600, "PT1D": 86400, "P1D": 86400}[.];
 .result[]?.MyEnergyData_MarketDocument.TimeSeries[]?
 | .Period[]?
-| (.timeInterval.start | utc) as $start
+| (.timeInterval.start | sub("\\.[0-9]+"; "") | if test("Z$") then . else . + "Z" end) as $start
 | (.resolution // "") as $res
 | ($res | step) as $s
 | .Point[]?
 | (.position | tonumber) as $p
-| [ (if $s then ($start + ($p - 1) * $s | stamp)
-     else "periode \($start | stamp) pos \($p) (\($res))" end),
-    (.["out_Quantity.quantity"] | tonumber),
-    (.["out_Quantity.quality"] // "") ]
+| (if $s then [($p - 1) * $s, ""]
+   elif $p == 1 then [0, ""]
+   else [0, " (periodestart, pos \($p), \($res))"] end) as [$off, $note]
+| [$start, $off, $note,
+   (.["out_Quantity.quantity"] | tonumber),
+   (.["out_Quantity.quality"] // "")]
 | @tsv'
+
+# to_local RÅFIL -> rækker "lokal tid<TAB>kWh<TAB>kvalitet" på stdout.
+# Tider beregnes i UTC og omregnes til $TZ, så sommertid/vintertid (23/25-
+# timers døgn) håndteres korrekt. Ved skift til vintertid optræder kl. 02:00
+# derfor to gange (først sommertid, så vintertid).
+to_local() {
+  local raw=$1
+  [[ -s $raw ]] || return 0
+  cut -f1 "$raw" | date -f - +%s >"$WORK/start.s" ||
+    die "kunne ikke tolke periodestart i svaret fra Eloverblik"
+  paste "$WORK/start.s" <(cut -f2 "$raw") |
+    awk -F'\t' '{ printf "@%.0f\n", $1 + $2 }' |
+    date -f - '+%Y-%m-%d %H:%M' >"$WORK/local.ts" ||
+    die "kunne ikke omregne tidspunkter til lokal tid"
+  [[ $(wc -l <"$WORK/local.ts") -eq $(wc -l <"$raw") ]] ||
+    die "antal tidspunkter passer ikke med antal målinger"
+  paste "$WORK/local.ts" <(cut -f3- "$raw") |
+    awk -F'\t' -v OFS='\t' '{ print $1 $2, $3, $4 }'
+}
 
 # fetch_rows FRA TIL AGG -> $WORK/rows.tsv. Deler perioden op i kalenderår,
 # fordi API'et højst tillader 730 dage pr. kald.
@@ -163,7 +183,8 @@ fetch_rows() {
       jq . "$WORK/ts$n.json"
     else
       check_result "$WORK/ts$n.json"
-      jq -r "$JQ_ROWS" "$WORK/ts$n.json" >>"$WORK/rows.tsv"
+      jq -r "$JQ_ROWS" "$WORK/ts$n.json" >"$WORK/raw.tsv"
+      to_local "$WORK/raw.tsv" >>"$WORK/rows.tsv"
     fi
     cur=$next
   done

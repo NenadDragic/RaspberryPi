@@ -9,6 +9,7 @@
 #
 # CSV-filen får kun en ny linje, når Eloverblik har nye eller rettede data.
 # Eloverblik er ca. et døgn bagud, så de fleste kørsler logger blot "uændret".
+# Er data mere end STALE_DAYS dage bagud, logges [ADVARSEL].
 #
 # Kolonner (semikolon-separeret):
 #   kørt             hvornår kørslen fandt de nye data
@@ -24,6 +25,9 @@ set -uo pipefail
 # Opdatér den, når du aflæser måleren igen (fx ved årsopgørelsen). Så holdes
 # kaldene til Eloverblik små, og en eventuel afvigelse nulstilles.
 BASE="${ELO_BASE:-91939@2026-10-25 10:29}"
+
+# Normalt er data for i går klar i løbet af i dag (1-2 dage bagud).
+STALE_DAYS="${ELO_STALE_DAYS:-3}"
 
 SCRIPT="${ELO_SCRIPT:-$(dirname "$(readlink -f "$0")")/eloverblik-fetch.sh}"
 DATA_FILE="${ELO_DATA_FILE:-$HOME/eloverblik/taellerstand.csv}"
@@ -45,7 +49,20 @@ log_stderr() {
   done <"$ERR"
 }
 
+# days_behind ÅÅÅÅ-MM-DD -> antal hele dage fra den dato til i dag
+days_behind() {
+  local t_now t_day
+  t_now=$(date -d "$(date +%F) 12:00" +%s) || return 1
+  t_day=$(date -d "$1 12:00" +%s) || return 1
+  echo $(( (t_now - t_day + 43200) / 86400 ))
+}
+
 [[ -r $SCRIPT ]] || { log FEJL "kan ikke læse $SCRIPT"; exit 1; }
+
+BASE_DATE=${BASE#*@}
+BASE_DATE=${BASE_DATE:0:10}
+[[ $BASE_DATE =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]] ||
+  { log FEJL "BASE har ikke formen STAND@ÅÅÅÅ-MM-DD [TT:MM]: $BASE"; exit 1; }
 
 DATA_DIR=$(dirname "$DATA_FILE")
 mkdir -p "$DATA_DIR" || { log FEJL "kan ikke oprette $DATA_DIR"; exit 1; }
@@ -61,8 +78,15 @@ OUT=$(bash "$SCRIPT" -r "$BASE" 2>"$ERR")
 RC=$?
 
 if (( RC != 0 )); then
-  if grep -qE 'endnu ikke data|Ingen data for' "$ERR"; then
-    log INFO "ingen data i Eloverblik endnu"
+  MSG=$(grep -m1 -E 'endnu ikke data|Ingen data for' "$ERR")
+  if [[ -n $MSG ]]; then
+    # Intet data efter aflæsningen endnu: seneste hele dag er dagen før BASE
+    LAG=$(days_behind "$(date -d "$BASE_DATE -1 day" +%F)")
+    if (( LAG > STALE_DAYS )); then
+      log ADVARSEL "ingen data i Eloverblik efter aflæsningen $BASE_DATE ($LAG dage bagud) - tjek eloverblik.dk"
+    else
+      log INFO "${MSG#Fejl: }"
+    fi
     exit 0
   fi
   log FEJL "eloverblik-fetch.sh stoppede med exit $RC:"
@@ -91,17 +115,29 @@ fi
 
 if grep -q 'A04' "$ERR"; then KVAL='delvis estimeret'; else KVAL='målt'; fi
 
+LAG=$(days_behind "${TS:0:10}")
+stale_check() {
+  if (( LAG > STALE_DAYS )); then
+    log ADVARSEL "Eloverblik er $LAG dage bagud (seneste data: timen $TS) - tjek eloverblik.dk"
+  fi
+}
+
 ROW="$TS;$USE;$EST;$KVAL"
 [[ -s $DATA_FILE ]] || printf '%s\n' "$HEADER" >"$DATA_FILE"
 
 if [[ $(tail -n1 "$DATA_FILE" | cut -d';' -f2-) == "$ROW" ]]; then
-  log INFO "uændret: $EST kWh (data til og med timen $TS)"
+  if (( LAG > STALE_DAYS )); then
+    stale_check
+  else
+    log INFO "uændret: $EST kWh (data til og med timen $TS)"
+  fi
   exit 0
 fi
 
 printf '%s;%s\n' "$(date '+%F %T')" "$ROW" >>"$DATA_FILE" ||
   { log FEJL "kan ikke skrive til $DATA_FILE"; exit 1; }
 log OK "$EST kWh (data til og med timen $TS, $USE kWh siden aflæsningen, $KVAL)"
+stale_check
 
 # Refresh-tokenet udløber efter ca. et år; så stopper alle kørsler med fejl.
 if [[ -f $TOKEN_FILE ]]; then

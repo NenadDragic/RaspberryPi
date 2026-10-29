@@ -33,8 +33,9 @@ Prerequisites:
 | `ELO_SCRIPT` | `eloverblik-fetch.sh` next to this script | The script to run |
 | `ELO_DATA_FILE` | `~/eloverblik/taellerstand.csv` | The CSV file |
 | `ELO_TOKEN_FILE` | `~/.eloverblik_token` | Only used for the token age warning |
+| `ELO_STALE_DAYS` | `3` | Log `ADVARSEL` when the newest data is more than this many days old |
 
-Update `BASE` when you read the meter again (for example at the annual statement). That keeps the calls to Eloverblik small and resets any drift.
+Update `BASE` when you read the meter again (for example at the annual statement). That keeps the calls to Eloverblik small and resets any drift. `BASE` is checked at startup; if it is not in the form `READING@YYYY-MM-DD [HH:MM]`, the run logs `FEJL` and exits `1`.
 
 ---
 
@@ -46,13 +47,15 @@ Sets `PATH`, `LC_ALL=C.UTF-8` and `TZ=Europe/Copenhagen`, because cron has a min
 
 ### Step 2 – Run `eloverblik-fetch.sh -r`
 
-Each stderr line from `eloverblik-fetch.sh` becomes its own log line. If it fails because there is no data yet, that is logged as `INFO` and the run exits `0`; any other failure is logged as `FEJL` and exits `1`.
+Each stderr line from `eloverblik-fetch.sh` becomes its own log line. If it fails because there is no data yet, the message is logged as `INFO` and the run exits `0` (or `ADVARSEL` if the day before `BASE` is more than `ELO_STALE_DAYS` days ago); any other failure is logged as `FEJL` and exits `1`.
 
 ### Step 3 – Parse and save
 
 Reads the time of the last data hour, the consumption since the reading and the estimated meter reading from the output (works with and without `column` alignment). If `eloverblik-fetch.sh` warned about values that are not measured, the quality is `delvis estimeret`, otherwise `målt`.
 
 The new line is compared with the last line in the CSV (ignoring the run time). Unchanged → `INFO uændret`; changed → the line is appended and logged as `OK`.
+
+If the last data hour is more than `ELO_STALE_DAYS` days old, an `ADVARSEL` is logged (instead of `INFO uændret`, or after the `OK` line), so a stalled Eloverblik shows up in the log.
 
 ### Step 4 – Token age
 
@@ -75,13 +78,13 @@ Semicolon-separated, with a header line when the file is created:
 | Code | Meaning |
 | --- | --- |
 | `0` | OK, unchanged, no data yet, or previous run still going |
-| `1` | `eloverblik-fetch.sh` missing or failed, output could not be parsed, or the data folder/CSV could not be written |
+| `1` | `eloverblik-fetch.sh` missing or failed, `BASE` invalid, output could not be parsed, or the data folder/CSV could not be written |
 
 ---
 
 ## Notes
 
-- **Eloverblik is about one day behind,** so most hourly runs just log `uændret`.
+- **Eloverblik is about one day behind** (normally 1–2 days), so most hourly runs just log `uændret`. More than `ELO_STALE_DAYS` (3) days behind gives `ADVARSEL`.
 - **The CSV and log are not in the repo;** they live in `~/eloverblik/` and wherever cron writes the log.
 - The parsing depends on the Danish output text of `eloverblik-fetch.sh`. If that text changes, the run fails with `FEJL` and logs the full output.
 - Comments and log messages are in Danish.

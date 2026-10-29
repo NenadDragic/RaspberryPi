@@ -1,6 +1,6 @@
 # eloverblik-fetch
 
-Fetches electricity consumption from Eloverblik (Energinet DataHub, Customer API) and prints it as a table, or estimates the meter's current reading from a known reading. Runs on the `Admin` Raspberry Pi, but works on any Linux machine with `bash`, `curl` and `jq`.
+Fetches electricity consumption from Eloverblik (Energinet DataHub, Customer API) and prints it as a table, or estimates the meter's current reading from a known reading. Runs on the `Admin` Raspberry Pi, but works on any Linux machine with `bash`, `curl`, `jq` and GNU `date`.
 
 ---
 
@@ -29,7 +29,7 @@ Fetches electricity consumption from Eloverblik (Energinet DataHub, Customer API
 Prerequisites:
 
 - **No sudo.** Everything is in the user's home folder.
-- **Packages:** `curl` (7.55 or newer, for headers from stdin) and `jq`, both checked at startup with an `apt install` hint. `column` (package `bsdextrautils`) is optional and only lines up the table.
+- **Packages:** `curl` (7.55 or newer, for headers from stdin) and `jq`, both checked at startup with an `apt install` hint. `column` (package `bsdextrautils`) is optional and only lines up the table. GNU `date` (coreutils, standard on Debian/Raspberry Pi OS) does the time-zone conversion.
 - A **refresh token** from eloverblik.dk → profile → Datadeling, saved in `~/.eloverblik_token` with `chmod 600`.
 
 ### Configuration (environment variables)
@@ -58,7 +58,9 @@ Uses `-m` or `ELO_METERING_POINT`; otherwise it fetches the account's metering p
 
 Calls `gettimeseries` once per calendar year in the period (the API allows at most 730 days per call). `429`/`503` answers are retried up to three times with 30 seconds between. Errors reported per metering point inside the answer stop the script.
 
-Timestamps are calculated from the period start in UTC plus position × resolution, so 23- and 25-hour days at daylight saving changes come out right (02:00 appears twice when going to winter time).
+`jq` only extracts the raw values: period start (UTC), offset in seconds ((position − 1) × resolution), kWh and quality. The local time is then calculated with GNU `date`, because `jq` 1.6 (Debian/Raspberry Pi OS bookworm) shows local time one hour wrong during summer time. Working in UTC means 23- and 25-hour days at daylight saving changes come out right (02:00 appears twice when going to winter time).
+
+Known resolutions are `PT15M`, `PT1H`, `PT1D` and `P1D`. For an unknown resolution, every point gets the period start as its time, with a note `(periodestart, pos N, RES)` on all but the first.
 
 ### Step 4 – Output
 
@@ -70,7 +72,7 @@ Timestamps are calculated from the period start in UTC plus position × resoluti
 | Code | Meaning |
 | --- | --- |
 | `0` | OK |
-| `1` | Missing tool or token, API error, invalid date/metering point, or no data for the period |
+| `1` | Missing tool or token, API error, invalid date/metering point, no data for the period, or times in the answer that could not be converted |
 | `2` | Unknown option |
 
 ---
